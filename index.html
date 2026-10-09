@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Từ Điển Phật Học Tam Ngữ (Hán - Việt - Anh)</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>tailwind.config={theme:{extend:{colors:{saffron:'#9a3412',amberGold:'#b45309',vermilion:'#b91c1c',xuyen:'#f7f3e9',xuyenCard:'#efe6d2',xuyenBorder:'#e2d3b7',ink:'#231815'},fontFamily:{hanzi:['"Noto Serif TC"','serif']}}}}</script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style type="text/tailwindcss">
+:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:#f7f3e9;color:#231815;font-family:'Be Vietnam Pro',sans-serif}
+@layer components{
+.btn{@apply px-3 py-2 rounded-lg text-sm font-semibold text-white bg-saffron hover:opacity-90 transition disabled:opacity-50}
+.btn2{@apply px-3 py-2 rounded-lg text-sm font-medium bg-white border border-xuyenBorder text-stone-700 hover:bg-xuyenCard}
+.inp{@apply w-full p-2 bg-white border border-xuyenBorder rounded-lg text-sm focus:outline-none focus:border-saffron}
+.card{@apply bg-white border border-xuyenBorder rounded-xl p-4 shadow-sm}
+.tab{@apply px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap text-stone-700}
+.tab.on{@apply bg-saffron text-white}
+.lbl{@apply block text-xs font-bold text-stone-700 mb-1}
+.modal{@apply fixed inset-0 bg-stone-900/60 z-50 flex items-center justify-center p-4}
+.box{@apply bg-xuyen p-5 rounded-2xl border border-xuyenBorder max-w-xl w-full space-y-3 max-h-[90vh] overflow-y-auto}}
+</style></head>
+<body class="min-h-screen">
+<header class="sticky top-0 z-40 bg-xuyen border-b border-xuyenBorder">
+ <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+  <div><h1 class="font-bold text-saffron">☸️ BUDDHIST GLOSSARY HUB <span class="text-[10px] bg-amberGold/10 text-amberGold px-2 py-0.5 rounded-full border border-amberGold/30">EN / VN / ZH</span></h1>
+  <p class="text-xs text-stone-600">Từ điển Phật học Anh - Việt - Hán cho đối chiếu dịch thuật</p></div>
+  <div class="flex items-center gap-3 text-xs"><span>Đã duyệt <b id="nOk" class="text-saffron">0</b></span><span>Chờ <b id="nPend" class="text-amberGold">0</b></span>
+  <button class="btn2" onclick="openSet()">🔑 Gemini API</button></div></div>
+ <nav class="max-w-6xl mx-auto px-4 pb-2 flex gap-1 overflow-x-auto">
+  <button class="tab on" data-t="repo" onclick="tab('repo')">📚 Kho từ điển</button>
+  <button class="tab" data-t="queue" onclick="tab('queue')">✅ Duyệt <span id="qBadge" class="bg-amberGold text-white text-[11px] px-1.5 rounded-full">0</span></button>
+  <button class="tab" data-t="ingest" onclick="tab('ingest')">📥 Nạp &amp; trích xuất</button>
+  <button class="tab" data-t="sim" onclick="tab('sim')">🤖 Agent dịch</button>
+  <button class="tab" data-t="api" onclick="tab('api')">🔌 Kết nối Agent</button>
+  <button class="tab" data-t="backup" onclick="tab('backup')">💾 Backup</button></nav>
+</header>
+<main class="max-w-6xl mx-auto px-4 py-5">
+
+<section id="s-repo" class="sec space-y-4">
+ <div class="card flex flex-wrap gap-2 items-center">
+  <input id="q" oninput="repo()" placeholder="Tìm Anh / Hán Việt / Hán tự…" class="inp sm:w-72">
+  <select id="fSort" onchange="repo()" class="inp sm:w-44"><option value="az">Xếp: A–Z Hán Việt</option><option value="freq">Xếp: Tần suất</option><option value="new">Xếp: Mới nhất</option></select>
+  <select id="fSrc" onchange="repo()" class="inp sm:w-52"></select>
+  <button class="btn ml-auto" onclick="openTerm()">＋ Thêm thuật ngữ</button></div>
+ <div class="card space-y-2">
+  <div class="flex flex-wrap items-center gap-1"><span class="text-xs font-bold w-20">Tầng</span><span id="chTier"></span>
+   <span class="ml-auto flex gap-1"><button class="btn2 !py-1" onclick="setView('card')">🗂 Thẻ</button><button class="btn2 !py-1" onclick="setView('table')">📋 Bảng</button></span></div>
+  <div class="flex flex-wrap items-center gap-1"><span class="text-xs font-bold w-20">Tông phái</span><span id="chSect" class="flex flex-wrap gap-1"></span></div>
+  <div class="flex flex-wrap items-center gap-1"><span class="text-xs font-bold w-20">Chủ đề</span><span id="chCat" class="flex flex-wrap gap-1"></span></div>
+  <div class="flex flex-wrap items-center gap-1"><span class="text-xs font-bold w-20">A–Z</span><span id="chAz" class="flex flex-wrap gap-1"></span></div>
+  <div class="flex flex-wrap items-center gap-1"><span class="text-xs font-bold w-20">Tin cậy</span><span id="chConf" class="flex flex-wrap gap-1"></span></div>
+  <div class="flex flex-wrap items-center gap-2 text-xs pt-2 border-t border-xuyenBorder"><b id="resInfo"></b><button class="btn2 !py-1" onclick="clearF()">✖ Xóa lọc</button><button class="btn2 !py-1" onclick="rateAll()">🤖 Chấm độ tin cậy mục chưa chấm</button><button class="btn2 !py-1" onclick="exportList()">📋 Copy / tải danh sách</button>
+   <span class="ml-auto flex items-center gap-1">Top <input id="coreN" type="number" min="50" class="inp !w-20 !py-1"> <button class="btn2 !py-1" onclick="rebuildCore()">🔄 Xây lại Top thường dùng</button></span></div></div>
+ <div id="grid" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3"></div>
+ <p id="empty" class="hidden text-center py-12 card text-stone-500">Không có thuật ngữ phù hợp.</p>
+</section>
+
+<section id="s-queue" class="sec hidden space-y-3">
+ <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-900">🛡️ Thuật ngữ AI trích xuất phải được người duyệt (kiểm Hán tự, âm Hán Việt, tông phái) trước khi vào kho chính thức.</div>
+ <div id="qList" class="space-y-3"></div>
+ <p id="qEmpty" class="hidden text-center py-12 card text-stone-500">Hàng đợi trống.</p>
+</section>
+
+<section id="s-ingest" class="sec hidden"><div class="card space-y-3">
+ <div class="bg-xuyenCard/70 p-3 rounded-lg space-y-2">
+  <label class="lbl">1. Dán link bất kỳ: Drive / Docs / Slides / thư mục / trang web / PDF online <span class="font-normal text-stone-500">(cầu nối: <b id="gStat">…</b>)</span></label>
+  <div class="flex gap-2"><input id="dUrl" type="url" placeholder="https://docs.google.com/document/d/…" class="inp">
+  <button class="btn whitespace-nowrap" onclick="drive()">Đọc</button><button class="btn2 whitespace-nowrap" onclick="openGas()">⚙️ Cầu nối</button></div><div id="folderBox"></div></div>
+ <div id="dz" class="bg-xuyenCard/70 p-3 rounded-lg space-y-2 border-2 border-dashed border-xuyenBorder"><label class="lbl">2. Chọn / kéo thả nhiều file từ máy tính hoặc điện thoại</label>
+  <p class="text-[11px] text-stone-500">PDF (cả bản scan), Word .docx, EPUB, PowerPoint .pptx, Excel/ODS, HTML, RTF, TXT/MD/CSV/JSON, ảnh chụp (JPG/PNG/WebP/HEIC)</p>
+  <div class="flex flex-wrap gap-2 items-center"><input type="file" multiple accept=".txt,.md,.csv,.tsv,.json,.srt,.vtt,.html,.htm,.xhtml,.xml,.rtf,.pdf,.docx,.epub,.pptx,.odt,.odp,.xlsx,.xls,.ods,image/*" onchange="ingestFiles(this.files)" class="text-xs">
+  <label class="btn2 cursor-pointer">📷 Chụp trang sách<input type="file" accept="image/*" capture="environment" onchange="ingestFiles(this.files)" class="hidden"></label>
+  <label class="text-xs flex items-center gap-1"><input type="checkbox" id="autoX" checked> Tự động AI trích xuất &amp; thẩm định sau khi đọc</label></div></div>
+ <label class="lbl">Văn bản <span id="cc" class="font-normal text-stone-500">0 ký tự</span></label>
+ <textarea id="txt" rows="9" oninput="$('cc').textContent=this.value.length+' ký tự'" class="inp leading-relaxed" placeholder="Nội dung nạp từ Drive/File, hoặc dán trực tiếp…"></textarea>
+ <div class="flex flex-wrap gap-2 items-center justify-between"><div class="flex gap-2 items-center text-xs">Nguồn: <input id="srcTag" value="Google Drive" class="inp w-52"></div>
+  <span class="flex gap-2"><button class="btn2" onclick="countDoc($('txt').value,$('srcTag').value)">📊 Đếm tần suất (miễn phí)</button><button id="btnX" class="btn" onclick="extract()">✨ AI trích xuất thuật ngữ</button></span></div>
+ <pre id="log" class="text-xs text-stone-600 whitespace-pre-wrap"></pre></div></section>
+
+<section id="s-sim" class="sec hidden"><div class="card space-y-3">
+ <p class="text-xs text-stone-600">Agent tra glossary theo tông phái (RAG), rồi nhờ Gemini dịch bắt buộc dùng đúng thuật ngữ đã duyệt.</p>
+ <div class="grid gap-4 lg:grid-cols-2"><div class="space-y-2">
+  <div class="flex items-center justify-between gap-2"><label class="lbl m-0">Văn bản tiếng Anh</label><select id="aSect" class="inp w-40"></select><select id="aDeep" class="inp w-44"><option value="0">Tầng 1: Top thường dùng</option><option value="1">Tầng 1+2: + tông phái</option><option value="2">Tầng 1-3: toàn kho</option></select></div>
+  <textarea id="aTxt" rows="6" class="inp">Practitioners must realize their true Self-Nature and attain non-conceptual awareness beyond mind and delusion.</textarea>
+  <button class="btn w-full" onclick="agent()">⚡ Tra glossary &amp; dịch</button></div>
+  <div><label class="lbl">RAG payload <span id="aBadge" class="ml-2 text-[10px] bg-emerald-100 text-emerald-800 px-2 rounded">Khớp 0</span></label>
+  <pre id="aJson" class="bg-stone-900 text-amber-200 p-3 rounded-lg text-xs h-44 overflow-auto">{}</pre></div></div>
+ <div id="aRes" class="hidden grid gap-4 md:grid-cols-2 pt-3 border-t border-xuyenBorder">
+  <div class="bg-xuyenCard p-3 rounded-lg"><b class="text-[11px] uppercase text-saffron">Bản dịch</b><p id="aOut" class="text-sm leading-relaxed mt-1 whitespace-pre-wrap"></p></div>
+  <div><b class="text-[11px] uppercase text-amberGold">Thuật ngữ khớp</b><div id="aList" class="text-xs divide-y divide-xuyenBorder max-h-52 overflow-y-auto"></div></div></div></div></section>
+
+<section id="s-api" class="sec hidden space-y-4 text-xs leading-relaxed">
+ <div class="card space-y-2"><h2 class="font-bold text-saffron text-sm">🔌 Cho AI Agent truy cập kho từ điển</h2>
+  <p>File HTML này lưu dữ liệu trong trình duyệt nên Agent <b>không tự đọc được</b>. Cách làm: đồng bộ kho lên Drive (<code>glossary.json</code>) qua Apps Script; Agent gọi API của script để tra từ.</p>
+  <ol class="list-decimal pl-4"><li>Dán mã bên dưới vào script.google.com, đổi 2 token, cấp quyền và Deploy như hướng dẫn ở ⚙️ (nếu đã có script cũ: thay mã rồi Deploy <b>Phiên bản mới</b>).</li>
+  <li>Bấm ⚙️ URL &amp; Token, nhập URL <code>/exec</code> và <b>TOKEN</b> (quản trị).</li><li>Bấm <b>Đẩy kho lên Drive</b>. Mỗi lần sửa kho thì đẩy lại (đẩy sẽ ghi đè bản trên Drive).</li></ol>
+  <div class="flex flex-wrap gap-2"><button class="btn" onclick="push()">⬆️ Đẩy kho lên Drive</button><button class="btn2" onclick="pull()">⬇️ Kéo về (chỉ thêm mục mới)</button><button class="btn2" onclick="openGas()">⚙️ URL &amp; Token</button></div></div>
+ <div class="card space-y-1"><b>Mã Apps Script (kho từ điển + đọc Drive)</b>
+  <pre class="bg-stone-900 text-emerald-300 p-2 rounded overflow-x-auto select-all">const TOKEN='doi-chuoi-bi-mat-nay',AGENT_TOKEN='token-rieng-cho-agent';
+const out=o=>ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+const dbf=()=>{const i=DriveApp.getFilesByName('glossary.json');return i.hasNext()?i.next():DriveApp.createFile('glossary.json','[]')};
+const load=()=>JSON.parse(dbf().getBlob().getDataAsString());
+const NA=/[^\x00-\x7f]/;
+const rx=v=>new RegExp('\\b'+v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b');
+const vars=t=>String(t.english||'').split('/').map(s=>s.trim().toLowerCase()).filter(s=>s.length>2).concat([t.hanzi,String(t.hanviet||'').toLowerCase()]).filter(Boolean);
+const hit=(t,low)=>vars(t).some(v=>NA.test(v)?low.indexOf(v)>=0:rx(v).test(low));
+function lookup(txt,sect,deep,min){
+ const low=txt.toLowerCase(),V=load().filter(t=>t.status==='verified'&amp;&amp;(!min||t.human||(t.conf||0)>=min)),seen={},res=[];
+ [V.filter(t=>t.core),V.filter(t=>!t.core&amp;&amp;(!sect||t.sect===sect||t.sect==='Chung / Khái Quát')),V.filter(t=>!t.core)].slice(0,deep+1).forEach((L,i)=>L.forEach(t=>{
+  if(!seen[t.id]&amp;&amp;hit(t,low)){seen[t.id]=1;res.push({tier:i+1,english:t.english,hanzi:t.hanzi,hanviet:t.hanviet,sect:t.sect,cat:t.cat,conf:t.conf,human:!!t.human,definition:t.definition})}}));
+ return {ok:true,tiers_searched:deep+1,count:res.length,glossary:res}}
+function handle(p){
+ try{
+  if(p.token!==TOKEN&amp;&amp;!(p.token===AGENT_TOKEN&amp;&amp;p.action==='lookup'))return out({ok:false,error:'Sai token'});
+  const a=p.action||(p.id?'file':'ping');
+  if(a==='ping')return out({ok:true});
+  if(a==='lookup')return out(lookup(p.text||'',p.sect||'',Math.min(+p.deep||0,2),+p.minconf||0));
+  if(a==='pull')return out({ok:true,terms:load()});
+  if(a==='push'){dbf().setContent(JSON.stringify(p.terms));return out({ok:true,n:p.terms.length})}
+  if(a==='folder'){const it=DriveApp.getFolderById(p.id).getFiles(),L=[];while(it.hasNext()){const f=it.next();L.push({id:f.getId(),name:f.getName(),size:f.getSize()})}return out({ok:true,files:L})}
+  if(a==='url'){const r=UrlFetchApp.fetch(p.u,{muteHttpExceptions:true,followRedirects:true}),h=r.getHeaders(),m=String(h['Content-Type']||h['content-type']||'').split(';')[0],n=decodeURIComponent(p.u.split('?')[0].split('/').pop())||'link';
+   return out(/^text\//.test(m)?{ok:true,name:n,mime:m,text:r.getContentText()}:{ok:true,name:n,mime:m,b64:Utilities.base64Encode(r.getContent())})}
+  const f=DriveApp.getFileById(p.id),m=f.getMimeType(),n=f.getName();let t;
+  if(m===MimeType.GOOGLE_DOCS)t=DocumentApp.openById(p.id).getBody().getText();
+  else if(m===MimeType.GOOGLE_SHEETS)t=SpreadsheetApp.openById(p.id).getSheets().map(s=>s.getDataRange().getValues().map(r=>r.join('\t')).join('\n')).join('\n\n');
+  else if(m===MimeType.GOOGLE_SLIDES)t=SlidesApp.openById(p.id).getSlides().map(s=>s.getShapes().map(x=>x.getText().asString()).join('\n')).join('\n\n');
+  else if(/^text\//.test(m))t=f.getBlob().getDataAsString();
+  if(t!=null)return out({ok:true,name:n,mime:'text/plain',text:t});
+  return out({ok:true,name:n,mime:m,b64:Utilities.base64Encode(f.getBlob().getBytes())});
+ }catch(err){return out({ok:false,error:String(err)})}}
+function doGet(e){return handle(e.parameter)}
+function doPost(e){return handle(JSON.parse(e.postData.contents))}</pre></div>
+ <div class="card space-y-1"><b>Cách Agent tra theo tầng (tiết kiệm token)</b>
+  <p>Agent <b>không đọc cả kho</b>: server tự khớp đoạn văn với từ điển và chỉ trả những thuật ngữ có trong đoạn (vài chục dòng). <b>AGENT_TOKEN</b> chỉ cho phép tra từ, không đọc được Drive của bạn — hãy đưa token này cho Agent, giữ TOKEN quản trị cho riêng bạn.</p>
+  <pre class="bg-stone-900 text-amber-200 p-2 rounded overflow-x-auto select-all whitespace-pre-wrap">Trước khi dịch MỖI đoạn, gọi API kho từ điển:
+POST URL_WEB_APP  (body JSON)
+{"token":"AGENT_TOKEN","action":"lookup","text":"ĐOẠN NGUỒN","sect":"Tịnh Độ tông","deep":0,"minconf":80}  (minconf: chỉ nhận mục AI tin cậy ≥80% hoặc đã có người xác nhận)
+- deep=0: chỉ quét Top thường dùng (tầng 1, rẻ nhất). Dùng kết quả này trước.
+- Nếu đoạn còn thuật ngữ chuyên môn chưa có đối chiếu: gọi lại deep=1 (thêm thuật ngữ của tông phái/truyền thống), rồi deep=2 (toàn kho).
+- Chỉ đưa các mục trong "glossary" trả về vào prompt dịch và bắt buộc dùng đúng thuật ngữ đó. Không tải cả kho.
+- Thuật ngữ không có trong kho: giữ nguyên gốc kèm chú thích và ghi vào danh sách "cần bổ sung".</pre></div>
+</section>
+<section id="s-backup" class="sec hidden grid gap-4 md:grid-cols-2">
+ <div class="card space-y-3"><h2 class="font-bold text-saffron">Sao lưu &amp; phục hồi</h2><p class="text-xs text-stone-600">Import sẽ gộp thêm thuật ngữ mới, không ghi đè kho hiện tại.</p>
+  <div class="flex gap-2"><button class="btn" onclick="exp()">⬇️ Export JSON</button>
+  <label class="btn2 cursor-pointer">⬆️ Import JSON<input type="file" accept=".json" onchange="imp(event)" class="hidden"></label></div></div>
+ <div class="card space-y-3"><h2 class="font-bold text-vermilion">Reset dữ liệu mẫu</h2><p class="text-xs text-stone-600">Xóa toàn bộ kho và quay về 4 thuật ngữ mẫu.</p>
+  <button class="btn bg-vermilion" style="background:#b91c1c" onclick="reset(this)">Reset</button></div>
+</section>
+</main>
+<footer class="text-center text-xs text-stone-500 py-4 font-hanzi text-saffron font-bold">南無阿彌陀佛</footer>
+
+<div id="mTerm" class="modal hidden"><form class="box" onsubmit="saveTerm(event)">
+ <h3 id="tTitle" class="font-bold text-saffron">Thuật ngữ</h3><input type="hidden" id="tId"><input type="hidden" id="tStat">
+ <div><label class="lbl">English</label><input id="tEn" class="inp"></div>
+ <div class="grid grid-cols-3 gap-2"><div><label class="lbl">Hán tự *</label><input id="tZh" required class="inp font-hanzi"></div>
+  <div><label class="lbl">Âm Hán Việt *</label><input id="tHv" required class="inp"></div>
+  <div><label class="lbl">Tông phái</label><select id="tSect" class="inp"></select></div></div>
+ <div><label class="lbl">Giải nghĩa *</label><textarea id="tDef" rows="3" required class="inp"></textarea></div>
+ <div><label class="lbl">Ngữ cảnh trích dẫn</label><textarea id="tCtx" rows="2" class="inp"></textarea></div>
+ <div class="grid grid-cols-2 gap-2"><div><label class="lbl">Nguồn</label><input id="tSrc" class="inp"></div><div><label class="lbl">Chủ đề</label><select id="tCat" class="inp"></select></div></div>
+ <div class="flex justify-end gap-2"><button type="button" class="btn2" onclick="$('mTerm').classList.add('hidden')">Hủy</button><button class="btn">Lưu</button></div></form></div>
+
+<div id="mSet" class="modal hidden"><div class="box">
+ <h3 class="font-bold text-saffron">🔑 Gemini API</h3>
+ <div><label class="lbl">API Key (lưu trong trình duyệt này)</label><input id="kIn" type="password" class="inp font-mono" placeholder="AIza…"></div>
+ <div><label class="lbl">Model (đổi nếu model cũ bị Google ngừng)</label><input id="mIn" class="inp font-mono"></div>
+ <div class="grid grid-cols-2 gap-2"><div><label class="lbl">Tự nhận vào kho khi tin cậy ≥ (%)</label><input id="aTin" type="number" class="inp"></div><div><label class="lbl">Loại bỏ khi dưới (%)</label><input id="rTin" type="number" class="inp"></div></div>
+ <label class="text-xs flex items-center gap-1"><input type="checkbox" id="grIn"> Kiểm chứng bằng Google Search khi thẩm định (kèm link nguồn)</label>
+ <div><label class="lbl">Tên người chỉnh sửa (ghi vào mục bạn duyệt/sửa)</label><input id="whoIn" class="inp"></div>
+ <div class="flex justify-end gap-2"><button class="btn2" onclick="$('mSet').classList.add('hidden')">Đóng</button><button class="btn" onclick="saveSet()">Lưu</button></div></div></div>
+
+<div id="mGas" class="modal hidden"><div class="box text-xs leading-relaxed">
+ <h3 class="font-bold text-saffron text-base">⚙️ Cầu nối Google Apps Script (đọc Doc riêng tư)</h3>
+ <ol class="list-decimal pl-4 space-y-1.5">
+  <li>Vào <b>script.google.com</b> → Dự án mới → dán mã ở tab <b>🔌 Kết nối Agent</b>, đổi 2 token. Mã mới cần quyền Drive, Docs, Sheets, Slides và truy cập web: bấm <b>Chạy</b> lại để cấp quyền.</li>
+  <li><b>Cấp quyền:</b> chọn hàm <code>doGet</code> → <b>Chạy</b> → Xem quyền → chọn tài khoản → Nâng cao → "Đi tới… (không an toàn)" → Cho phép. (Lỗi "e undefined" sau đó là bình thường.)</li>
+  <li><b>Triển khai</b> → Ứng dụng web → Execute as: <b>Me</b>, Who has access: <b>Anyone</b> → Deploy → copy URL kết thúc bằng <b>/exec</b>.</li>
+  <li>Mỗi lần sửa mã: Triển khai → <b>Quản lý triển khai</b> → ✏️ → Phiên bản: <b>Phiên bản mới</b> → Deploy (URL giữ nguyên).</li></ol>
+ <div><label class="lbl">URL Web App (/exec)</label><input id="gUrl" class="inp font-mono"></div>
+ <div><label class="lbl">Token (giống TOKEN trong mã)</label><input id="gTok" class="inp font-mono"></div>
+ <div class="flex justify-end gap-2"><button class="btn2" onclick="$('mGas').classList.add('hidden')">Đóng</button><button class="btn2" onclick="saveGas();testGas()">Lưu &amp; thử</button></div></div></div>
+
+<div id="toast" class="fixed bottom-5 right-5 z-[60] max-w-sm bg-stone-900 text-white text-xs px-4 py-3 rounded-xl shadow-xl opacity-0 transition-opacity pointer-events-none"></div>
+
+<script>
+const K='buddhist_glossary_db_multilingual_v2',KEY='gemini_api_key_custom',GAS='gas_relay_script_url',TOK='gas_relay_token',MOD='gemini_model',DEF_MODEL='gemini-2.5-flash';
+const SECTS=['Tịnh Độ tông','Thiền tông','Duy Thức tông','Mật tông','Nguyên thủy','Trung Quán / Bát Nhã','Chung / Khái Quát'];
+const $=i=>document.getElementById(i);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ls={get(k){try{return localStorage.getItem(k)}catch{return null}},set(k,v){try{localStorage.setItem(k,v)}catch{}}};
+const today=()=>new Date().toISOString().slice(0,10);
+const CATS=['Giáo lý nền tảng','Tu tập & Pháp môn','Tâm & Thức','Chư Phật · Bồ-tát · Thánh chúng','Cõi giới & Nhân quả','Giới luật & Nghi lễ','Kinh luận & Học thuyết','Khác'];
+const SEEDCAT={'term-1':CATS[4],'term-2':CATS[1],'term-3':CATS[2],'term-4':CATS[1]};
+const mk=(id,english,hanzi,hanviet,sect,definition,context,source)=>({id,english,hanzi,hanviet,sect,definition,context,source,status:'verified',tags:[],created_at:today(),cat:SEEDCAT[id],freq:0,docs:0,core:false,pin:false});
+const SEED=[
+mk('term-1','Pure Land','淨土','Tịnh độ',SECTS[0],'Cõi nước thanh tịnh do công đức nguyện lực của chư Phật tạo nên, không có ba đường ác, thuận lợi cho việc tu học giải thoát.','Practitioners of the Pure Land school must rely on faith, vow, and practice.','BDK English Tripitaka'),
+mk('term-2','Self-Nature / Original Face','自性','Tự tánh',SECTS[1],'Bản thể chân thật thanh tịnh sẵn có nơi mỗi người; Thiền tông nhấn mạnh trực chỉ nhân tâm, kiến tánh thành Phật.','Practitioners must realize their true Self-Nature.','Zen Classics'),
+mk('term-3','Storehouse Consciousness / Alaya-vijñāna','阿賴耶識','A-lại-da thức',SECTS[2],'Thức thứ tám trong Duy Thức học, chứa các chủng tử nghiệp từ vô thỉ, là gốc của luân hồi và giải thoát.','Alaya-vijñāna stores all karmic seeds.','Thành Duy Thức Luận'),
+mk('term-4','Mindfulness / Sati','正念','Chánh niệm',SECTS[4],'Sự ghi nhận tỉnh giác rõ ràng đối với thân, thọ, tâm, pháp trong hiện tại.','Cultivating continuous mindfulness of breath.','Kinh Đại Niệm Xứ')];
+let terms=[],armed=null;
+
+function load(){try{terms=JSON.parse(ls.get(K))||[]}catch{terms=[]}terms.forEach(t=>{t.cat=t.cat||SEEDCAT[t.id]||'Khác'});if(!terms.length){terms=SEED.map(t=>({...t}));save()}}
+function save(){terms.forEach(t=>{t.cat=t.cat||'Khác';t.freq=t.freq||0;t.docs=t.docs||0});ls.set(K,JSON.stringify(terms));stats()}
+function stats(){const p=terms.filter(t=>t.status==='pending').length;$('nOk').textContent=terms.filter(t=>t.status==='verified').length;$('nPend').textContent=p;$('qBadge').textContent=p}
+function toast(m,err){const t=$('toast');t.textContent=(err?'⚠️ ':'✅ ')+m;t.classList.remove('opacity-0');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.add('opacity-0'),4500)}
+function tab(n){document.querySelectorAll('.sec').forEach(e=>e.classList.add('hidden'));document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.t===n));$('s-'+n).classList.remove('hidden');render()}
+function render(){fillSrc();repo();queue();stats()}
+function fillSrc(){const s=$('fSrc'),c=s.value,L=[...new Set(terms.filter(t=>t.status==='verified').map(t=>t.source).filter(Boolean))];s.innerHTML='<option value="">Tất cả nguồn</option>'+L.map(x=>`<option>${esc(x)}</option>`).join('');s.value=L.includes(c)?c:''}
+const btns=(t,q)=>`<div class="flex justify-between items-center text-[11px] text-stone-500 pt-1"><span>${esc(t.source)}${t.freq?` · ${t.docs} tl · ${t.freq}×`:''}</span><span>${q?'':`<button class="px-1" onclick="pin('${t.id}')">${t.core?'⭐':'☆'}</button>`}${q?`<button class="px-2 text-emerald-700 font-bold" onclick="approve('${t.id}')">Duyệt</button>`:''}<button class="px-1" onclick="openTerm('${t.id}')">✏️</button><button class="px-1" onclick="del('${t.id}',this)">🗑️</button></span></div>`;
+const cardHtml=(t,q)=>`<div class="card space-y-2 ${q?'border-l-4 border-l-amberGold':''}"><div class="flex justify-between gap-2"><div><div class="text-xs font-bold text-saffron uppercase">${esc(t.english)||'—'}</div><div class="flex items-baseline gap-2"><span class="text-xl font-bold font-hanzi">${esc(t.hanzi)||'？'}</span><span class="text-xs font-semibold text-stone-600">(${esc(t.hanviet)})</span></div></div><span class="text-[10px] h-fit bg-amberGold/10 text-amberGold px-2 py-0.5 rounded border border-amberGold/20">${esc(t.sect)} · ${esc(t.cat)}</span></div><p class="text-xs leading-relaxed">${esc(t.definition)}</p>${confHtml(t)}${t.context?`<p class="text-xs italic bg-xuyenCard/70 p-2 rounded">“${esc(t.context)}”</p>`:''}${btns(t,q)}</div>`;
+function repo(){const V=terms.filter(t=>t.status==='verified'),q=$('q').value.toLowerCase().trim(),so=$('fSrc').value,srt=$('fSort').value;
+ $('chTier').innerHTML=chip('tier','1','⭐ Thường dùng',V.filter(t=>t.core).length+'/'+coreN());
+ $('chSect').innerHTML=SECTS.map(s=>chip('sect',s,s,V.filter(t=>t.sect===s).length)).join('');
+ $('chCat').innerHTML=CATS.map(c=>chip('cat',c,c,V.filter(t=>t.cat===c).length)).join('');
+ $('chAz').innerHTML=[...new Set(V.map(az))].sort().map(l=>chip('az',l,l)).join('');
+ $('chConf').innerHTML=[['u','👤 Người xác nhận'],['h','🟢 ≥90%'],['m','🟡 70–89%'],['l','🔴 <70%'],['n','⚪ Chưa chấm']].map(([v,l])=>chip('conf',v,l,V.filter(t=>cl(t)===v).length)).join('');
+ const L=V.filter(t=>(!F.tier||t.core)&&(!F.sect||t.sect===F.sect)&&(!F.cat||t.cat===F.cat)&&(!F.az||az(t)===F.az)&&(!F.conf||cl(t)===F.conf)&&(!so||t.source===so)&&(!q||[t.english,t.hanzi,t.hanviet,t.definition].some(x=>(x||'').toLowerCase().includes(q))));
+ L.sort(srt==='freq'?(a,b)=>((b.docs||0)-(a.docs||0))||((b.freq||0)-(a.freq||0)):srt==='new'?(a,b)=>(b.created_at||'').localeCompare(a.created_at||''):(a,b)=>(a.hanviet||'').localeCompare(b.hanviet||'','vi'));
+ lastList=L;$('resInfo').textContent=`${L.length} / ${V.length} thuật ngữ`;const g=$('grid');
+ if(F.view==='table'){g.className='card overflow-x-auto p-0';g.innerHTML=`<table class="w-full text-xs"><thead class="bg-xuyenCard text-left"><tr>${['','Hán tự','Hán Việt','English','Tông phái','Chủ đề','Tài liệu · lần',''].map(h=>`<th class="p-2">${h}</th>`).join('')}</tr></thead><tbody>${L.map(rowHtml).join('')}</tbody></table>`}
+ else{g.className='grid gap-4 md:grid-cols-2 lg:grid-cols-3';g.innerHTML=L.map(t=>cardHtml(t,0)).join('')}
+ $('empty').classList.toggle('hidden',L.length>0)}
+function queue(){const L=terms.filter(t=>['pending','rejected'].includes(t.status));$('qList').innerHTML=L.map(t=>cardHtml(t,1)).join('');$('qEmpty').classList.toggle('hidden',L.length>0)}
+function approve(id){const t=terms.find(x=>x.id===id);if(!t.hanzi||!t.hanviet)return toast('Thiếu Hán tự / âm Hán Việt — bấm ✏️ để bổ sung trước khi duyệt',1);t.status='verified';t.human=true;t.by=ls.get('who')||'';save();render();toast('Đã duyệt')}
+function del(id,b){if(armed!==id){armed=id;b.textContent='❓';toast('Bấm lần nữa để xóa');setTimeout(()=>{if(armed===id){armed=null;b.textContent='🗑️'}},3000);return}armed=null;terms=terms.filter(t=>t.id!==id);save();render();toast('Đã xóa')}
+function reset(b){if(!reset.a){reset.a=1;b.textContent='Bấm lần nữa để XÓA HẾT';setTimeout(()=>{reset.a=0;b.textContent='Reset'},3500);return}reset.a=0;b.textContent='Reset';terms=SEED.map(t=>({...t}));save();render();toast('Đã khôi phục dữ liệu mẫu')}
+
+function openTerm(id){const t=terms.find(x=>x.id===id)||{status:'verified',sect:SECTS[0],source:'Thủ công'};
+ $('tTitle').textContent=id?'Sửa thuật ngữ':'Thêm thuật ngữ';$('tId').value=id||'';$('tStat').value=t.status;$('tEn').value=t.english||'';$('tZh').value=t.hanzi||'';$('tHv').value=t.hanviet||'';$('tSect').value=t.sect;$('tDef').value=t.definition||'';$('tCtx').value=t.context||'';$('tSrc').value=t.source||'';$('tCat').value=t.cat||CATS[7];$('mTerm').classList.remove('hidden')}
+function saveTerm(e){e.preventDefault();const id=$('tId').value,o={english:$('tEn').value.trim(),hanzi:$('tZh').value.trim(),hanviet:$('tHv').value.trim(),sect:$('tSect').value,definition:$('tDef').value.trim(),context:$('tCtx').value.trim(),source:$('tSrc').value.trim(),cat:$('tCat').value,human:true,by:ls.get('who')||'',status:$('tStat').value};
+ if(id)Object.assign(terms.find(t=>t.id===id),o);else terms.push({...o,id:'t'+Date.now(),tags:[],created_at:today()});
+ save();render();$('mTerm').classList.add('hidden');toast('Đã lưu')}
+
+function openSet(){$('kIn').value=ls.get(KEY)||'';$('mIn').value=ls.get(MOD)||DEF_MODEL;$('aTin').value=autoT();$('rTin').value=revT();$('grIn').checked=ls.get('ground')!=='0';$('whoIn').value=ls.get('who')||'';$('mSet').classList.remove('hidden')}
+function saveSet(){ls.set(KEY,$('kIn').value.trim());ls.set(MOD,$('mIn').value.trim()||DEF_MODEL);ls.set('auto_t',$('aTin').value||85);ls.set('rev_t',$('rTin').value||50);ls.set('ground',$('grIn').checked?'1':'0');ls.set('who',$('whoIn').value.trim());$('mSet').classList.add('hidden');toast('Đã lưu cấu hình Gemini')}
+let lastSrc=[];
+async function gemini(prompt,json,opt={}){const k=ls.get(KEY);if(!k)throw new Error('Chưa có Gemini API Key');
+ const parts=opt.file?[{inline_data:{mime_type:opt.file.mime,data:opt.file.b64}},{text:prompt}]:[{text:prompt}],body={contents:[{parts}],generationConfig:{temperature:0.2}};
+ if(opt.ground)body.tools=[{google_search:{}}];else if(json)body.generationConfig.responseMimeType='application/json';
+ const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${ls.get(MOD)||DEF_MODEL}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':k},body:JSON.stringify(body)});
+ if(!r.ok)throw new Error('Gemini '+r.status+': '+(await r.text()).slice(0,160));
+ const d=await r.json(),c=d.candidates?.[0];lastSrc=(c?.groundingMetadata?.groundingChunks||[]).map(x=>x.web).filter(w=>w&&/^https?:\/\//.test(w.uri||'')).map(w=>({title:w.title||'',uri:w.uri}));
+ return(c?.content?.parts||[]).map(p=>p.text||'').join('')}
+
+function openGas(){$('gUrl').value=ls.get(GAS)||'';$('gTok').value=ls.get(TOK)||'';$('mGas').classList.remove('hidden')}
+function saveGas(){ls.set(GAS,$('gUrl').value.trim());ls.set(TOK,$('gTok').value.trim());gasStat()}
+function gasStat(){$('gStat').textContent=ls.get(GAS)?'đã cấu hình':'chưa cấu hình'}
+const hint=e=>e instanceof TypeError?'Không kết nối được (Failed to fetch). Kiểm tra: URL phải là /exec, Who has access = Anyone, đã Deploy phiên bản mới, và trang không chạy trong sandbox chặn mạng.':e.message;
+async function callGas(q){const u=ls.get(GAS);if(!u)throw new Error('Chưa cấu hình URL Apps Script (bấm ⚙️ Cầu nối)');
+ const r=await fetch(`${u}${u.includes('?')?'&':'?'}${q}&token=${encodeURIComponent(ls.get(TOK)||'')}`);const t=await r.text();let j;
+ try{j=JSON.parse(t)}catch{throw new Error('Apps Script trả về trang HTML thay vì dữ liệu: thường do chưa Cấp quyền, chưa Deploy "Phiên bản mới", hoặc Who has access chưa là Anyone.')}
+ if(!j.ok)throw new Error(j.error);return j}
+async function testGas(){try{await callGas('ping=1');toast('Cầu nối hoạt động tốt!')}catch(e){toast(hint(e),1)}}
+async function drive(){const u=$('dUrl').value.trim();if(!/^https?:\/\//.test(u)&&!/^[\w-]{20,}$/.test(u))return toast('Dán một đường link (http…) hoặc File ID',1);
+ try{toast('Đang đọc…');const fm=u.match(/\/folders\/([\w-]+)/);
+  if(fm)return showFolder((await callGas('action=folder&id='+fm[1])).files);
+  const m=u.match(/\/d\/([\w-]+)/)||u.match(/[?&]id=([\w-]+)/)||(/^[\w-]{20,}$/.test(u)?[0,u]:null);
+  await gotRemote(await callGas(/google\.com/.test(u)||!/^https?:/.test(u)?(m?'id='+m[1]:'action=url&u='+encodeURIComponent(u)):'action=url&u='+encodeURIComponent(u)))}catch(e){toast(hint(e),1)}}
+async function gotRemote(j){let t=j.text;if(t==null){t=await readAny(j.name||'',j.mime||'',Uint8Array.from(atob(j.b64),c=>c.charCodeAt(0)).buffer)}else if(/html/.test(j.mime||''))t=htmlText(t);
+ $('txt').value=t;$('cc').textContent=t.length+' ký tự';$('srcTag').value=j.name||'Link';toast(`Đã đọc “${j.name||'link'}” (${t.length} ký tự)`);if($('autoX').checked)await extract(t,j.name||'Link')}
+function showFolder(fs){$('folderBox').innerHTML=`<div class="bg-white p-2 rounded text-xs space-y-1 mt-2"><b>Thư mục có ${fs.length} file</b> <button class="btn2 !py-1" onclick="document.querySelectorAll('.fchk').forEach(c=>c.checked=true)">Chọn tất cả</button> <button class="btn !py-1" onclick="runFolder()">Nạp các file đã chọn</button>${fs.map(f=>`<label class="flex gap-2 items-center"><input type="checkbox" class="fchk" data-id="${esc(f.id)}" data-n="${esc(f.name)}">${esc(f.name)} <span class="text-stone-400">${Math.round(f.size/1024)} KB</span></label>`).join('')}</div>`;toast('Đã liệt kê thư mục — chọn file cần nạp')}
+async function runFolder(){const log=$('log');log.textContent='';for(const c of document.querySelectorAll('.fchk:checked')){log.textContent+=`📄 ${c.dataset.n}… `;try{await gotRemote(await callGas('id='+c.dataset.id));log.textContent+='xong\n'}catch(e){log.textContent+=`lỗi: ${hint(e)}\n`}}}
+async function ingestFiles(files){files=[...files];const log=$('log');log.textContent='';
+ for(const f of files){log.textContent+=`📄 ${f.name}… `;try{const t=await readAny(f.name,f.type,await f.arrayBuffer());$('txt').value=t;$('cc').textContent=t.length+' ký tự';$('srcTag').value=f.name;log.textContent+=`đọc ${t.length} ký tự\n`;if($('autoX').checked)await extract(t,f.name)}catch(e){log.textContent+=`lỗi: ${e.message}\n`}}
+ toast(`Đã xử lý ${files.length} file`)}
+function chunks(t,n=5000){const o=[];let c='';for(const p of t.split(/\n+/)){if(c&&c.length+p.length>n){o.push(c);c=''}c+=p+'\n'}if(c.trim())o.push(c);return o}
+async function extract(t0,s0){const text=(t0??$('txt').value).trim(),src=s0||$('srcTag').value.trim()||'Ingest',log=$('log');
+ if(!text)return toast('Chưa có văn bản',1);if(!ls.get(KEY)){toast('Cần nhập Gemini API Key trước',1);return openSet()}
+ const P=`Bạn là chuyên gia từ điển Phật học Tam ngữ (Anh - Hán - Việt). Trích xuất các thuật ngữ Phật học quan trọng trong văn bản. Chỉ trả về MẢNG JSON, mỗi phần tử gồm: english, hanzi (Hán tự phồn thể; nếu không chắc để chuỗi rỗng, đừng bịa), hanviet (âm Hán Việt), sect (một trong: ${SECTS.join(' | ')}), definition (ngắn gọn, tiếng Việt), context (câu chứa thuật ngữ), cat (một trong: ${CATS.join(' | ')}).\n\nVăn bản:\n`;
+ const parts=chunks(text);let add=0;$('btnX').disabled=true;if(t0===undefined)log.textContent='';
+ for(let i=0;i<parts.length;i++){log.textContent+=`Đoạn ${i+1}/${parts.length}… `;
+  try{const arr=JSON.parse((await gemini(P+parts[i],true)).match(/\[[\s\S]*\]/)[0]);let n=0;
+   arr.forEach((x,j)=>{const en=(x.english||'').toLowerCase();if(!x.english&&!x.hanzi)return;if(terms.some(t=>(t.hanzi||'')===(x.hanzi||'')&&(t.english||'').toLowerCase()===en))return;
+    terms.push({id:`t${Date.now()}-${i}-${j}`,english:x.english||'',hanzi:x.hanzi||'',hanviet:x.hanviet||'',sect:SECTS.includes(x.sect)?x.sect:SECTS[6],cat:CATS.includes(x.cat)?x.cat:CATS[7],definition:x.definition||'',context:x.context||'',source:src,status:'pending',tags:[],created_at:today()});n++});
+   add+=n;log.textContent+=`+${n}\n`}catch(e){log.textContent+=`lỗi: ${hint(e)}\n`}}
+ $('btnX').disabled=false;await vetNew(log);countDoc(text,src,terms.filter(t=>!t.docs&&t.source===src&&t.created_at===today()));save();render();toast(add||!log.textContent.includes('lỗi')?`Trích xuất ${add} ứng viên · AI đã thẩm định (xem tab Kho / Duyệt)`:'Không gọi được Gemini (xem lỗi bên dưới). Nếu đang mở trong Claude thì trang bị chặn mạng — hãy chạy bản tải về hoặc đặt lên hosting riêng.',!add)}
+
+async function agent(){const txt=$('aTxt').value.trim(),se=$('aSect').value;if(!txt)return toast('Nhập văn bản cần dịch',1);const low=txt.toLowerCase();
+ const g=lookup(txt,se,+$('aDeep').value).map(t=>({tier:t.tier,english:t.english,hanzi:t.hanzi,hanviet:t.hanviet,sect:t.sect,definition:t.definition}));
+ $('aJson').textContent=JSON.stringify({sect:se||'ALL',matched:g.length,glossary:g},null,2);$('aBadge').textContent='Khớp '+g.length;
+ $('aList').innerHTML=g.map(t=>`<div class="py-1.5"><span class="text-[10px] bg-amberGold/10 text-amberGold px-1 rounded mr-1">T${t.tier}</span><b class="text-saffron">${esc(t.english)}</b> <span class="font-hanzi">${esc(t.hanzi)} (${esc(t.hanviet)})</span><p class="text-[11px] text-stone-600">${esc(t.definition)}</p></div>`).join('')||'<p class="text-stone-400 py-2">Không khớp thuật ngữ nào.</p>';
+ $('aRes').classList.remove('hidden');$('aOut').textContent='Đang dịch…';
+ try{$('aOut').textContent=await gemini(`Dịch đoạn tiếng Anh sau sang tiếng Việt Phật học trang trọng. BẮT BUỘC dùng đúng thuật ngữ trong glossary (tông phái: ${se||'chung'}); không thêm ý. Chỉ trả về bản dịch.\n\nGLOSSARY:\n${JSON.stringify(g)}\n\nVĂN BẢN:\n${txt}`)}
+ catch(e){$('aOut').textContent='Chưa dịch được: '+hint(e)+' (RAG payload vẫn dùng được).'}}
+
+function exp(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(terms,null,2)],{type:'application/json'}));a.download=`buddhist_glossary_${today()}.json`;a.click()}
+function imp(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const a=JSON.parse(r.result);if(!Array.isArray(a))throw 0;let n=0;
+ a.forEach((x,i)=>{if(!x||(!x.hanzi&&!x.english))return;const id=/^[\w-]+$/.test(x.id||'')?x.id:`imp${Date.now()}-${i}`;if(terms.some(t=>t.id===id))return;
+  terms.push({english:'',hanzi:'',hanviet:'',sect:SECTS[6],definition:'',context:'',source:'Import',tags:[],...x,id,status:['pending','rejected'].includes(x.status)?x.status:'verified'});n++});
+ save();render();toast(`Đã gộp ${n} thuật ngữ mới`)}catch{toast('File JSON không hợp lệ',1)}ev.target.value=''};r.readAsText(f)}
+
+const F={tier:'',sect:'',cat:'',az:'',conf:'',view:'card'},NA=/[^\x00-\x7f]/,coreN=()=>+ls.get('core_n')||1000;let lastList=[];
+const az=t=>((t.hanviet||'?').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d')[0]||'?').toUpperCase();
+const rx=v=>new RegExp('\\b'+v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','g');
+const variants=t=>(t.english||'').split('/').map(s=>s.trim().toLowerCase()).filter(s=>s.length>2).concat([t.hanzi,(t.hanviet||'').toLowerCase()]).filter(Boolean);
+const count=(low,v)=>NA.test(v)?low.split(v).length-1:(low.match(rx(v))||[]).length;
+const hit=(t,low)=>variants(t).some(v=>NA.test(v)?low.includes(v):rx(v).test(low));
+const chip=(k,v,l,n)=>`<button onclick="setF('${k}','${v}')" class="px-2 py-1 rounded-full border text-xs ${F[k]===v?'bg-saffron text-white border-saffron':'bg-white border-xuyenBorder hover:bg-xuyenCard'}">${esc(l)}${n==null?'':` <b class="opacity-70">${n}</b>`}</button>`;
+const rowHtml=t=>`<tr class="border-t border-xuyenBorder hover:bg-xuyenCard/50"><td class="p-2"><button onclick="pin('${t.id}')">${t.core?'⭐':'☆'}</button></td><td class="p-2 font-hanzi text-base font-bold">${esc(t.hanzi)}</td><td class="p-2 font-semibold">${esc(t.hanviet)}</td><td class="p-2">${esc(t.english)}</td><td class="p-2">${esc(t.sect)}</td><td class="p-2">${esc(t.cat)}</td><td class="p-2">${t.docs||0} · ${t.freq||0}×</td><td class="p-2 whitespace-nowrap"><button onclick="openTerm('${t.id}')">✏️</button> <button onclick="del('${t.id}',this)">🗑️</button></td></tr>`;
+function setF(k,v){F[k]=F[k]===v?'':v;repo()}
+function setView(v){F.view=v;repo()}
+function clearF(){Object.assign(F,{tier:'',sect:'',cat:'',az:'',conf:''});$('q').value='';$('fSrc').value='';repo()}
+function pin(id){const t=terms.find(x=>x.id===id),on=!t.core;t.pin=on;t.core=on;save();repo()}
+function exportList(){const s=['Hán tự','Hán Việt','English','Tông phái','Chủ đề','Giải nghĩa'].join('\t')+'\n'+lastList.map(t=>[t.hanzi,t.hanviet,t.english,t.sect,t.cat,t.definition].join('\t')).join('\n');
+ const dl=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/tab-separated-values'}));a.download='danh-sach-loc.tsv';a.click()};
+ (navigator.clipboard?navigator.clipboard.writeText(s):Promise.reject()).then(()=>toast(`Đã copy ${lastList.length} dòng — dán thẳng vào Google Sheet`),dl)}
+function rebuildCore(){const n=+$('coreN').value||1000;ls.set('core_n',n);const V=terms.filter(t=>t.status==='verified');V.forEach(t=>t.core=!!t.pin);
+ V.filter(t=>!t.core&&t.freq>0).sort((a,b)=>((b.docs||0)-(a.docs||0))||((b.freq||0)-(a.freq||0))).slice(0,Math.max(0,n-V.filter(t=>t.core).length)).forEach(t=>t.core=true);
+ save();render();toast(`Top thường dùng: ${V.filter(t=>t.core).length} thuật ngữ (ưu tiên ⭐ ghim, rồi số tài liệu chứa từ, rồi số lần xuất hiện)`)}
+const hash=s=>{let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return h+':'+s.length};
+function countDoc(text,src,only){if(!text.trim())return toast('Chưa có văn bản để đếm',1);let seen={};try{seen=JSON.parse(ls.get('docs_seen')||'{}')}catch{}const h=hash(text);
+ if(!only&&seen[h])return toast('Tài liệu này đã đếm rồi: '+seen[h],1);const low=text.toLowerCase();let n=0;
+ (only||terms).forEach(t=>{const c=variants(t).reduce((a,v)=>a+count(low,v),0);if(c){t.freq=(t.freq||0)+c;t.docs=(t.docs||0)+1;n++}});
+ if(!only){seen[h]=src;ls.set('docs_seen',JSON.stringify(seen));save();render();toast(`Đã đếm: ${n} thuật ngữ xuất hiện · tổng ${Object.keys(seen).length} tài liệu. Bấm 🔄 ở Kho để xây Top thường dùng`)}}
+function lookup(txt,se,deep){const low=txt.toLowerCase(),V=terms.filter(t=>t.status==='verified'),seen=new Set(),out=[];
+ [V.filter(t=>t.core),V.filter(t=>!t.core&&(!se||t.sect===se||t.sect===SECTS[6])),V.filter(t=>!t.core)].slice(0,deep+1).forEach((L,i)=>L.forEach(t=>{if(!seen.has(t.id)&&hit(t,low)){seen.add(t.id);out.push({...t,tier:i+1})}}));return out}
+async function post(o){const u=ls.get(GAS);if(!u)throw new Error('Chưa cấu hình URL Apps Script (bấm ⚙️ URL & Token)');
+ const r=await fetch(u,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({token:ls.get(TOK)||'',...o})}),t=await r.text();let j;
+ try{j=JSON.parse(t)}catch{throw new Error('Apps Script trả về HTML thay vì dữ liệu: kiểm tra đã Cấp quyền, Deploy "Phiên bản mới" và Who has access = Anyone.')}
+ if(!j.ok)throw new Error(j.error);return j}
+async function push(){try{const j=await post({action:'push',terms});toast(`Đã đẩy ${j.n} thuật ngữ lên Drive (glossary.json)`)}catch(e){toast(hint(e),1)}}
+async function pull(){try{const j=await post({action:'pull'});let n=0;j.terms.forEach(x=>{if(x&&/^[\w-]+$/.test(x.id||'')&&!terms.some(t=>t.id===x.id)){terms.push(x);n++}});save();render();toast(`Đã kéo về ${n} thuật ngữ mới`)}catch(e){toast(hint(e),1)}}
+const autoT=()=>+ls.get('auto_t')||85,revT=()=>+ls.get('rev_t')||50;
+const cl=t=>t.human?'u':t.conf==null?'n':t.conf>=90?'h':t.conf>=70?'m':'l';
+const confHtml=t=>t.conf==null&&!t.human?'':`<div class="text-[11px] rounded p-2 ${t.human||t.conf>=autoT()?'bg-emerald-50':t.conf>=revT()?'bg-amber-50':'bg-red-50'}"><b>${t.human?'👤 '+esc(t.by||'Người')+' đã xác nhận':''}${t.human&&t.conf!=null?' · ':''}${t.conf!=null?'🤖 Tin cậy '+t.conf+'%':''}</b> <span class="text-stone-600">${esc(t.why)}</span>${(t.evidence||[]).length?`<div class="mt-1 flex flex-wrap gap-x-2">Nguồn tìm được: ${t.evidence.map(e=>`<a target="_blank" rel="noopener" href="${esc(e.uri)}" class="underline text-saffron">${esc((e.title||'link').slice(0,26))}</a>`).join('')}</div>`:''}</div>`;
+async function verify(list,keep){
+ const P=`Bạn là thẩm định viên thuật ngữ Phật học Anh-Hán-Việt. Với MỖI thuật ngữ ứng viên, hãy tra cứu và đối chiếu các nguồn uy tín: Đại Chánh Tân Tu (Taishō)/CBETA, bản dịch BDK English Tripitaka, Pali Text Society, Digital Dictionary of Buddhism, từ điển Phật học Hán Việt (Phật Quang, Thiều Chửu, Đoàn Trung Còn), các bản dịch Việt của chư Tăng uy tín. Chấm "conf" 0-100: 90-100 = nhất quán ở ≥3 nguồn uy tín độc lập; 70-89 = 2 nguồn hoặc có khác biệt nhỏ giữa dịch giả; 50-69 = 1 nguồn hoặc chỉ suy luận; dưới 50 = không xác minh được hoặc sai. KHÔNG bịa nguồn: không tra được thì conf phải dưới 50. Chỉ trả về MẢNG JSON, mỗi phần tử: {"i":số thứ tự,"ok":true/false,"conf":0-100,"why":"1-3 câu tiếng Việt: dựa vào nguồn nào, các bản dịch có khác biệt gì","fix":{"english":"","hanzi":"","hanviet":""}} (fix chỉ điền trường cần sửa, nếu không thì {}).\n\nỨng viên:\n`+JSON.stringify(list.map((t,i)=>({i,english:t.english,hanzi:t.hanzi,hanviet:t.hanviet,sect:t.sect,definition:t.definition,context:t.context})));
+ const raw=await gemini(P,true,{ground:ls.get('ground')!=='0'}),arr=JSON.parse(raw.match(/\[[\s\S]*\]/)[0]),ev=lastSrc.slice(0,6);
+ arr.forEach(a=>{const t=list[a.i];if(!t)return;Object.entries(a.fix||{}).forEach(([k,v])=>{if(v&&['english','hanzi','hanviet'].includes(k))t[k]=v});
+  t.conf=Math.max(0,Math.min(100,+a.conf||0));t.why=String(a.why||'').slice(0,400);t.evidence=ev;t.ai=true;
+  if(!keep)t.status=a.ok&&t.conf>=autoT()?'verified':t.conf<revT()?'rejected':'pending'})}
+async function vetNew(log){const L=terms.filter(t=>t.status==='pending'&&t.conf==null);
+ for(let i=0;i<L.length;i+=5){log.textContent+=`Thẩm định ${Math.min(i+5,L.length)}/${L.length}… `;try{await verify(L.slice(i,i+5));log.textContent+='xong\n'}catch(e){log.textContent+=`lỗi: ${hint(e)}\n`}save()}}
+async function rateAll(){const L=terms.filter(t=>t.status==='verified'&&t.conf==null);if(!L.length)return toast('Mọi thuật ngữ trong kho đã được chấm');if(!ls.get(KEY)){toast('Cần Gemini API Key',1);return openSet()}
+ for(let i=0;i<L.length;i+=5){toast(`Đang chấm ${Math.min(i+5,L.length)}/${L.length}…`);try{await verify(L.slice(i,i+5),true)}catch(e){toast(hint(e),1);break}save();render()}toast('Đã chấm xong')}
+const need=(o,n)=>{if(!o)throw new Error('Thư viện '+n+' chưa tải được (cần kết nối mạng)')};
+const dec=b=>{let s=new TextDecoder('utf-8').decode(b);const bad=x=>(x.match(/\ufffd/g)||[]).length;if(bad(s)>3)for(const e of['big5','gb18030']){try{const x=new TextDecoder(e).decode(b);if(bad(x)<bad(s))s=x}catch{}}return s};
+const htmlText=h=>{const d=new DOMParser().parseFromString(h.replace(/<\/(p|div|h\d|li|tr|section)>|<br\s*\/?>/gi,'$&\n'),'text/html');d.querySelectorAll('script,style,nav,footer,noscript').forEach(e=>e.remove());return(d.body.textContent||'').replace(/\n\s*\n+/g,'\n\n')};
+const b64=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result.split(',')[1]);f.readAsDataURL(new Blob([b]))});
+async function ocr(mime,b){if(b.byteLength>15e6)throw new Error('File quá lớn để OCR bằng AI (>15MB) — hãy tách nhỏ');return gemini('Chép lại CHÍNH XÁC toàn bộ văn bản trong tài liệu này (OCR), giữ nguyên Hán tự, tiếng Việt có dấu và tiếng Anh. Không dịch, không tóm tắt, không thêm lời dẫn.',false,{file:{mime,b64:await b64(b)}})}
+async function pdfText(b){need(window.pdfjsLib,'PDF');pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+ const pdf=await pdfjsLib.getDocument({data:new Uint8Array(b.slice(0))}).promise,o=[];for(let i=1;i<=pdf.numPages;i++)o.push((await(await pdf.getPage(i)).getTextContent()).items.map(x=>x.str+(x.hasEOL?'\n':' ')).join(''));return o.join('\n\n')}
+async function zipText(b,e){need(window.JSZip,'ZIP');const z=await JSZip.loadAsync(b),re=e==='epub'?/\.x?html?$/i:e==='pptx'?/ppt\/slides\/slide\d+\.xml$/:/content\.xml$/;
+ const ns=Object.keys(z.files).filter(n=>re.test(n)).sort((a,c)=>a.localeCompare(c,undefined,{numeric:true})),o=[];
+ for(const n of ns){const x=await z.files[n].async('string');o.push(e==='epub'?htmlText(x):new DOMParser().parseFromString(x.replace(/<\/(a:p|text:p|text:h)>/g,'$&\n'),'text/html').documentElement.textContent)}return o.join('\n\n')}
+async function readAny(name,mime,b){const e=(name.split('.').pop()||'').toLowerCase(),M=mime||'';
+ if(['txt','md','csv','tsv','json','srt','vtt','log'].includes(e)||M==='text/plain')return dec(b);
+ if(['html','htm','xhtml','xml'].includes(e)||/html/.test(M))return htmlText(dec(b));
+ if(e==='rtf'||/rtf/.test(M))return dec(b).replace(/\\u(-?\d+)\??/g,(_,n)=>String.fromCharCode(n<0?+n+65536:+n)).replace(/\\'[0-9a-f]{2}/g,' ').replace(/\\[a-z]+-?\d* ?|[{}]/g,'');
+ if(e==='pdf'||/pdf/.test(M)){const t=await pdfText(b);return t.replace(/\s/g,'').length>100?t:await ocr('application/pdf',b)}
+ if(e==='docx'){need(window.mammoth,'Word');return(await mammoth.extractRawText({arrayBuffer:b})).value}
+ if(['epub','pptx','odt','odp'].includes(e))return zipText(b,e);
+ if(['xlsx','xls','ods'].includes(e)){need(window.XLSX,'Excel');const w=XLSX.read(b,{type:'array'});return w.SheetNames.map(n=>XLSX.utils.sheet_to_csv(w.Sheets[n])).join('\n\n')}
+ const im={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',heic:'image/heic',heif:'image/heif'}[e]||(/^image\//.test(M)?M:'');if(im)return ocr(im,b);
+ if(e==='doc'||e==='ppt')throw new Error('Định dạng .'+e+' (Office đời cũ) chưa đọc được — hãy lưu lại thành .docx/.pptx hoặc PDF');
+ throw new Error('Chưa hỗ trợ định dạng .'+(e||M))}
+['dragover','drop'].forEach(ev=>$('dz').addEventListener(ev,e=>{e.preventDefault();if(ev==='drop')ingestFiles(e.dataTransfer.files)}));
+const opts=SECTS.map(s=>`<option>${s}</option>`).join('');
+$('tCat').innerHTML=CATS.map(c=>`<option>${c}</option>`).join('');$('coreN').value=coreN();$('aSect').innerHTML=opts+'<option value="">Tự động (tất cả)</option>';$('tSect').innerHTML=opts;
+load();render();gasStat();
+</script></body></html>
